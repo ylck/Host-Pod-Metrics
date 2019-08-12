@@ -1,0 +1,11 @@
+[package]
+name = "pod_info"
+version = "0.1.0"
+authors = ["ghost <ghost.yue@gllue.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rs-docker = "0.0.51"
+serde_json = "*"
