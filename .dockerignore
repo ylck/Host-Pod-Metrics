@@ -1,5 +1,6 @@
 .git
 target/debug
 target/rls
+target/release
 .idea
 src

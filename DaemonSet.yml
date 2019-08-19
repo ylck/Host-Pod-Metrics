@@ -25,21 +25,27 @@ spec:
         name: kube-pod-in-host-info
         tier: node
     spec:
+      hostNetwork: true
       containers:
       - name: kube-pod-in-host-info
         image: ylck/host-pod-info 
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8088
         securityContext:
           privileged: true
         volumeMounts:
+        - name: host-name
+          mountPath: /etc/hostname
         - name: docker-socket
           mountPath: /var/run/docker.sock
       volumes:
       - name: docker-socket
         hostPath:
           path: /var/run/docker.sock
+      - name: host-name
+        hostPath:
+          path: /etc/hostname
 ---
 apiVersion: v1
 kind: Service
@@ -54,7 +60,7 @@ metadata:
   namespace: kube-system
 spec:
   ports:
-  - name: kube-pod-info
+  - name: metrics
     port: 8088
     protocol: TCP
     targetPort: 8088
@@ -64,3 +70,20 @@ spec:
   type: ClusterIP
 status:
   loadBalancer: {}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kube-pod-info
+  namespace: monitoring
+  labels:
+    team: frontend
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      k8s-app: kube-pod-in-host-info
+  endpoints:
+    - port: metrics
