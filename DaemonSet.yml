@@ -1,0 +1,66 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    k8s-app: kube-pod-in-host-info
+    kubernetes.io/cluster-service: "true"
+    name: kube-pod-in-host-info
+    tier: node
+  name: kube-pod-in-host-info
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      component: kube-pod-in-host-info
+      k8s-app: kube-pod-in-host-info
+      kubernetes.io/cluster-service: "true"
+      name: kube-pod-in-host-info
+      tier: node
+  template:
+    metadata:
+      labels:
+        component: kube-pod-in-host-info
+        k8s-app: kube-pod-in-host-info
+        kubernetes.io/cluster-service: "true"
+        name: kube-pod-in-host-info
+        tier: node
+    spec:
+      containers:
+      - name: kube-pod-in-host-info
+        image: ylck/host-pod-info 
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8088
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: kube-pod-in-host-info
+    k8s-app: kube-pod-in-host-info
+    kubernetes.io/cluster-service: "true"
+    name: kube-pod-in-host-info
+    tier: node
+  name: kube-pod-in-host-info
+  namespace: kube-system
+spec:
+  ports:
+  - name: kube-pod-info
+    port: 8088
+    protocol: TCP
+    targetPort: 8088
+  selector:
+     k8s-app: kube-pod-in-host-info
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
