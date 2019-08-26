@@ -1,6 +1,8 @@
 use crossbeam_channel::bounded;
 //use crossbeam_utils::thread;
 use actix_web::{web, App, HttpServer, Responder};
+use chrono;
+
 use prometheus::*;
 
 use rs_docker::Docker;
@@ -10,6 +12,12 @@ use std::collections::{HashMap, VecDeque};
 use std::thread;
 
 use sys_info;
+mod metrics;
+use self::metrics::*;
+
+extern crate fern;
+
+extern crate log;
 
 ///"Labels": {
 ///   "io.cri-containerd.kind": "container",
@@ -41,23 +49,26 @@ pub struct PidNetlink<'a> {
     p_ap: &'a str,
 }
 
-lazy_static::lazy_static! {
-    pub static ref POD_INFO: IntGaugeVec = register_int_gauge_vec!(
-        "A_pod_host_info",
-        "kube pod in host",
-        &[
-            "c_name",
-            "c_podname",
-            "c_podnamenamespace",
-            "h_name",
-            "h_ip",
-            "c_pid",
-        ]
-    )
-    .unwrap();
-}
-
 fn main() -> std::io::Result<()> {
+    fern::Dispatch::new()
+        // Perform allocation-free log formatting
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        // Add blanket level filter -
+        .level(log::LevelFilter::Debug)
+        // - and per-module overrides
+        .level_for("hyper", log::LevelFilter::Info)
+        // Output to stdout, files, and other Dispatch configurations
+        .chain(std::io::stdout())
+        // Apply globally
+        .apply();
     //    loop {
     //        let (s, r) = bounded(1); // Make room for one unmatched send.
     //        thread::spawn(move || {
