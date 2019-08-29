@@ -15,6 +15,9 @@ use sys_info;
 mod metrics;
 use self::metrics::*;
 
+use regex::Regex;
+use std::process::Command;
+
 extern crate fern;
 
 extern crate log;
@@ -35,6 +38,7 @@ pub struct PodContainers<'a> {
     c_podname: &'a str,
     c_podnamenamespace: &'a str,
     c_pid: &'a str,
+    c_nlink: &'a str,
     h_name: &'a str,
     h_ip: &'a str,
 }
@@ -69,43 +73,6 @@ fn main() -> std::io::Result<()> {
         .chain(std::io::stdout())
         // Apply globally
         .apply();
-    //    loop {
-    //        let (s, r) = bounded(1); // Make room for one unmatched send.
-    //        thread::spawn(move || {
-    //            // This call blocks the current thread until a receive operation appears
-    //            // on the other side of the channel.
-    //            let output = Command::new("ss").arg("-tunp4").output().expect("no shell");
-    //            if output.status.success() {
-    //                s.send(
-    //                    String::from_utf8_lossy(&output.stdout)
-    //                        .trim_end()
-    //                        .to_string(),
-    //                )
-    //                .unwrap();
-    //            }
-    //        });
-    //        if let Ok(out) = r.recv() {
-    //            let split = out.split("tcp");
-    //            for s in split {
-    //                //                println!("{:?}", s);
-    //                let re = Regex::new(
-    //                    r"(?:(?:[0,1]?\d?\d|2[0-4]\d|25[0-5])\.){3}(?:[0,1]?\d?\d|2[0-4]\d|25[0-5]):\d{0,5}",
-    //                )
-    //                    .unwrap();
-    //                let re2 = Regex::new(r"pid=\d{0,5}").unwrap();
-    //
-    //                let text = s.clone();
-    //                for cap in re.captures_iter(text) {
-    //                    println!("{}", &cap[0]);
-    //                }
-    //                for cap in re2.captures_iter(text) {
-    //                    println!("{}", &cap[0]);
-    //                }
-    //            }
-    //        }
-    //
-    //        thread::sleep(Duration::from_secs(1));
-    //    }
 
     HttpServer::new(move || App::new().service(web::resource("/metrics").to(metrics)))
         .bind("0.0.0.0:8088")?
@@ -119,6 +86,8 @@ fn metrics() -> impl Responder {
     //    POD_INFO
     //        .with_label_values(&["ddvdvdv", "bvddvdv", "dd", "sdv", "ddcc"])
     //        .set(10);
+    let mut contacts = HashMap::new();
+
     let hostname = sys_info::hostname().unwrap();
     let ip = local_ip::get().unwrap().to_string();
     println!("local ip address: {:?}", ip);
@@ -144,6 +113,49 @@ fn metrics() -> impl Responder {
             podcs.push_back(c);
         }
     }
+
+    let (s, r) = bounded(1); // Make room for one unmatched send.
+    thread::spawn(move || {
+        // This call blocks the current thread until a receive operation appears
+        // on the other side of the channel.
+        let output = Command::new("ss").arg("-tunp4").output().expect("no shell");
+        if output.status.success() {
+            s.send(
+                String::from_utf8_lossy(&output.stdout)
+                    .trim_end()
+                    .to_string(),
+            )
+            .unwrap();
+        }
+    });
+    match r.recv() {
+        Ok(out) => {
+            let split = out.split("tcp");
+            for s in split {
+                //                println!("{:?}", s);
+                let re = Regex::new(
+                    r"(?:(?:[0,1]?\d?\d|2[0-4]\d|25[0-5])\.){3}(?:[0,1]?\d?\d|2[0-4]\d|25[0-5]):\d{0,5}",
+                )
+                    .unwrap();
+                let pid = Regex::new(r"pid=\d{0,5}").unwrap();
+
+                let text = s.clone();
+                for pid in pid.captures_iter(text) {
+                    println!("{}", &pid[0].replace("pid=", ""));
+                    //                    #[derive(Copy, Clone, Debug)]
+                    //                    let mut s = String::from("");
+
+                    for address in re.captures_iter(text) {
+                        println!("{}", &address[0]);
+                        //                        let addr: String = s.push_str(address[0].parse());
+                        contacts.insert(pid[0].replace("pid=", ""), address[0]);
+                    }
+                }
+            }
+        }
+        Err(..) => {}
+    }
+
     //获取容器进程在 host PID
     for p in podcs {
         let (s, r) = bounded(10);
@@ -157,7 +169,7 @@ fn metrics() -> impl Responder {
         let c_data: HashMap<String, PodContainers> = HashMap::new();
         let hostname = hostname.clone();
         let ip = ip.clone();
-
+        let contacts = contacts.clone();
         thread::spawn(move || {
             let c_top = match docker.get_processes(&p) {
                 Ok(c_top) => c_top,
@@ -185,31 +197,41 @@ fn metrics() -> impl Responder {
                 c_pnames = x;
             }
             let mut c_data = c_data.clone();
-            if let Ok(cc_top) = r.recv() {
-                println!("{}", cc_top[0].pid.as_str());
-                c_data.insert(
-                    p.Id.to_string(),
-                    PodContainers {
-                        c_id: p.Id.as_str(),
-                        c_name: c_name,
-                        c_podname: c_pname,
-                        c_podnamenamespace: c_pnames,
-                        c_pid: cc_top[0].pid.as_str(),
-                        h_name: &hostname.as_str(),
-                        h_ip: &ip.as_str(),
-                    },
-                );
-                POD_INFO
-                    .with_label_values(&[
-                        c_name,
-                        c_pname,
-                        c_pnames,
-                        &hostname.as_str(),
-                        &ip.as_str(),
-                        cc_top[0].pid.as_str(),
-                    ])
-                    .set(cc_top[0].pid.parse().unwrap());
-                println!("docker info: {:?}", &c_data.get(&p.Id.to_string()));
+            match r.recv() {
+                Ok(cc_top) => {
+                    println!("{}", cc_top[0].pid.as_str());
+                    c_data.insert(
+                        p.Id.to_string(),
+                        PodContainers {
+                            c_id: p.Id.as_str(),
+                            c_name: c_name,
+                            c_podname: c_pname,
+                            c_podnamenamespace: c_pnames,
+                            c_pid: cc_top[0].pid.as_str(),
+                            h_name: &hostname.as_str(),
+                            h_ip: &ip.as_str(),
+                            c_nlink: "",
+                        },
+                    );
+
+                    POD_INFO
+                        .with_label_values(&[
+                            c_name,
+                            c_pname,
+                            c_pnames,
+                            &hostname.as_str(),
+                            &ip.as_str(),
+                            cc_top[0].pid.as_str(),
+                            contacts.get(cc_top[0].pid.as_str()).unwrap(),
+                        ])
+                        //                    .set(cc_top[0].pid.parse().unwrap());
+                        .set(0);
+
+                    //                }
+
+                    println!("docker info: {:?}", &c_data.get(&p.Id.to_string()));
+                }
+                Err(..) => {}
             }
         });
     }
@@ -219,6 +241,7 @@ fn metrics() -> impl Responder {
     let mut buffer = vec![];
     let encoder = TextEncoder::new();
     encoder.encode(&metric_families, &mut buffer).unwrap();
+    println!("{:?}", contacts);
 
     String::from_utf8(buffer).unwrap()
 }

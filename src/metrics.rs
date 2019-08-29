@@ -11,6 +11,7 @@ lazy_static::lazy_static! {
             "h_name",
             "h_ip",
             "c_pid",
+            "c_nlink"
         ]
     )
     .unwrap();
