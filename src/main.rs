@@ -86,7 +86,7 @@ fn metrics() -> impl Responder {
     //    POD_INFO
     //        .with_label_values(&["ddvdvdv", "bvddvdv", "dd", "sdv", "ddcc"])
     //        .set(10);
-    let mut contacts = HashMap::new();
+    let mut contacts: HashMap<String, String> = HashMap::new();
 
     let hostname = sys_info::hostname().unwrap();
     let ip = local_ip::get().unwrap().to_string();
@@ -148,7 +148,7 @@ fn metrics() -> impl Responder {
                     for address in re.captures_iter(text) {
                         println!("{}", &address[0]);
                         //                        let addr: String = s.push_str(address[0].parse());
-                        contacts.insert(pid[0].replace("pid=", ""), address[0]);
+                        contacts.insert(pid[0].replace("pid=", ""), address[0].parse().unwrap());
                     }
                 }
             }
