@@ -16,6 +16,7 @@ mod metrics;
 use self::metrics::*;
 
 use regex::Regex;
+use std::borrow::Borrow;
 use std::process::Command;
 
 extern crate fern;
@@ -222,9 +223,11 @@ fn metrics() -> impl Responder {
                             &hostname.as_str(),
                             &ip.as_str(),
                             cc_top[0].pid.as_str(),
-                            contacts.get(cc_top[0].pid.as_str()).unwrap(),
+                            contacts
+                                .get(cc_top[0].pid.as_str())
+                                .unwrap_or("0000".to_string().borrow())
+                                .as_str(),
                         ])
-                        //                    .set(cc_top[0].pid.parse().unwrap());
                         .set(0);
 
                     //                }
