@@ -30,6 +30,8 @@ spec:
         - name: kube-pod-in-host-info
           image: ylck/host-pod-info
           imagePullPolicy: Always
+          securityContext:
+            privileged: true
           ports:
             - containerPort: 8088
           securityContext:
@@ -39,10 +41,14 @@ spec:
               mountPath: /etc/hostname
             - name: docker-socket
               mountPath: /var/run/docker.sock
-            - name: proc
-              mountPath: /proc
-            - name: sys
-              mountPath: /sys
+            # - name: proc
+            #   mountPath: /host/proc
+            #   readOnly: true
+            # - name: sys
+            #   mountPath: /host/sys
+            #   readOnly: true
+      hostNetwork: true
+      hostPID: true
       volumes:
         - name: docker-socket
           hostPath:
@@ -50,12 +56,12 @@ spec:
         - name: host-name
           hostPath:
             path: /etc/hostname
-        - name: proc
-          hostPath:
-            path: /proc
-        - name: sys
-          hostPath:
-            path: /sys
+        # - name: proc
+        #   hostPath:
+        #     path: /proc
+        # - name: sys
+        #   hostPath:
+        #     path: /sys
 ---
 apiVersion: v1
 kind: Service

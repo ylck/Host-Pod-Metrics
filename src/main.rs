@@ -129,32 +129,37 @@ fn metrics() -> impl Responder {
             .unwrap();
         }
     });
-    match r.recv() {
-        Ok(out) => {
-            let split = out.split("tcp");
-            for s in split {
-                //                println!("{:?}", s);
-                let re = Regex::new(
-                    r"(?:(?:[0,1]?\d?\d|2[0-4]\d|25[0-5])\.){3}(?:[0,1]?\d?\d|2[0-4]\d|25[0-5]):\d{0,5}",
-                )
-                    .unwrap();
-                let pid = Regex::new(r"pid=\d{0,5}").unwrap();
+    if let Ok(out) = r.recv() {
+        let split = out.split("tcp");
+        for s in split {
+            //                println!("{:?}", s);
+            let re = Regex::new(
+                r"(?:(?:[0,1]?\d?\d|2[0-4]\d|25[0-5])\.){3}(?:[0,1]?\d?\d|2[0-4]\d|25[0-5]):\d{0,5}",
+            )
+                .unwrap();
+            let pid = Regex::new(r"pid=\d{0,5}").unwrap();
 
-                let text = s.clone();
-                for pid in pid.captures_iter(text) {
-                    println!("{}", &pid[0].replace("pid=", ""));
-                    //                    #[derive(Copy, Clone, Debug)]
-                    //                    let mut s = String::from("");
+            let text = s.clone();
+            for pid in pid.captures_iter(text) {
+                println!("{}", &pid[0].replace("pid=", ""));
 
-                    for address in re.captures_iter(text) {
-                        println!("{}", &address[0]);
-                        //                        let addr: String = s.push_str(address[0].parse());
-                        contacts.insert(pid[0].replace("pid=", ""), address[0].parse().unwrap());
-                    }
-                }
+                //                for address in re.captures_iter(text) {
+                //                    for i in address {
+                //                        println!("{}", i);
+                //                    }
+                //
+                //                    let addr: String = address[0].parse().unwrap();
+                //                    contacts.insert(pid[0].replace("pid=", ""), addr);
+                //                    //                    let addr: String = address[1].parse().unwrap();
+                //                    //                    contacts2.insert(pid[0].replace("pid=", ""), addr);
+                //                }
+                let caps = re.captures(text).unwrap();
+                let nlink = caps.get(0).map_or("", |m| m.as_str());
+
+                contacts.insert(pid[0].replace("pid=", ""), nlink.to_string());
             }
         }
-        Err(..) => {}
+    } else {
     }
 
     //获取容器进程在 host PID
