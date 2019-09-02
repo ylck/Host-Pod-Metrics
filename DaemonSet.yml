@@ -27,25 +27,35 @@ spec:
     spec:
       hostNetwork: true
       containers:
-      - name: kube-pod-in-host-info
-        image: ylck/host-pod-info 
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8088
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: host-name
-          mountPath: /etc/hostname
-        - name: docker-socket
-          mountPath: /var/run/docker.sock
+        - name: kube-pod-in-host-info
+          image: ylck/host-pod-info
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8088
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: host-name
+              mountPath: /etc/hostname
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: proc
+              mountPath: /proc
+            - name: sys
+              mountPath: /sys
       volumes:
-      - name: docker-socket
-        hostPath:
-          path: /var/run/docker.sock
-      - name: host-name
-        hostPath:
-          path: /etc/hostname
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+        - name: host-name
+          hostPath:
+            path: /etc/hostname
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
 ---
 apiVersion: v1
 kind: Service
@@ -60,12 +70,12 @@ metadata:
   namespace: kube-system
 spec:
   ports:
-  - name: metrics
-    port: 8088
-    protocol: TCP
-    targetPort: 8088
+    - name: metrics
+      port: 8088
+      protocol: TCP
+      targetPort: 8088
   selector:
-     k8s-app: kube-pod-in-host-info
+    k8s-app: kube-pod-in-host-info
   sessionAffinity: None
   type: ClusterIP
 status:
