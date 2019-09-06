@@ -1,8 +1,29 @@
-# Host_Pod_Metrics
+# Host-Pod-Metrics
 
-## Getting Started
+![111](img/Host-Pod.jpg)
 
-Host_Pod_Metrics is :
-### Installing Host_Pod_Metrics To  Kubernetes
+## 🍬 Features
 
+- Get pod pid
+- Get pod netlink
+- Support Prometheus
+
+## 🚀 Installation
+
+### Prerequisites
+
+- Prometheus operator
+- Grafana
+  
+### Getting Started
+
+- Install the kubernetes:
+  
+    ```bash
+    kubectl apply -f  DaemonSet.yml
+    ```
+
+- Input Grafana table
+  
+  Home -->  Import dashboard -->  Host_POD_NetLink.json 
 
