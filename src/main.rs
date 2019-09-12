@@ -1,6 +1,6 @@
 use crossbeam_channel::bounded;
 //use crossbeam_utils::thread;
-use actix_web::{web, App, HttpServer, Responder};
+use actix_web::{web, App, HttpServer, Responder, HttpResponse};
 use chrono;
 
 use prometheus::*;
@@ -75,9 +75,15 @@ fn main() -> std::io::Result<()> {
         // Apply globally
         .apply();
 
-    HttpServer::new(move || App::new().service(web::resource("/metrics").to(metrics)))
+    HttpServer::new(move || App::new().default_service(web::resource("").route(web::get().to(p404))).service(web::resource("/metrics").to(metrics)))
         .bind("0.0.0.0:8088")?
         .run()
+}
+/// 404 handler
+fn p404() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok()
+        .content_type("text/html")
+        .body("<a href=/metrics>IP</a>".to_string()))
 }
 
 fn metrics() -> impl Responder {
