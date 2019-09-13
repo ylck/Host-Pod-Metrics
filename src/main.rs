@@ -1,6 +1,7 @@
 use crossbeam_channel::bounded;
 //use crossbeam_utils::thread;
-use actix_web::{web, App, HttpServer, Responder, HttpResponse};
+use actix_web::{ web, App, HttpResponse, HttpServer, Result,Responder};
+
 use chrono;
 
 use prometheus::*;
@@ -74,10 +75,19 @@ fn main() -> std::io::Result<()> {
         .chain(std::io::stdout())
         // Apply globally
         .apply();
-
-    HttpServer::new(move || App::new().default_service(web::resource("").route(web::get().to(p404))).service(web::resource("/metrics").to(metrics)))
+    let sys = actix_rt::System::new("pod-info");
+    HttpServer::new(|| {
+        App::new()
+            .service(web::resource("/metrics").route(web::get().to(metrics)))
+            .default_service(web::resource("").route(web::get().to(p404)))
+    })
         .bind("0.0.0.0:8088")?
-        .run()
+        .shutdown_timeout(15)
+        .start();
+
+
+    println!("Starting http server: http://{}","0.0.0.0:8088");
+    sys.run()
 }
 /// 404 handler
 fn p404() -> Result<HttpResponse> {
