@@ -4,21 +4,20 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    steps:
-    - uses: actions/checkout@master
-    - uses: codecov/codecov-action@v1
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }} #required
-        file: ./coverage.xml #optional
-        flags: unittests #optional
-        name: codecov-umbrella #optional
-        yml: ./codecov.yml #optional  
+      - uses: actions/checkout@v1
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+
+      - uses: actions/checkout@master
+      - uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} #required
+          file: ./coverage.xml #optional
+          flags: unittests #optional
+          name: codecov-umbrella #optional
+          yml: ./codecov.yml #optional
