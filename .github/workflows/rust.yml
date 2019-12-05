@@ -13,11 +13,28 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
-      - uses: actions/checkout@master
-      - uses: codecov/codecov-action@v1
+      - uses: actions-rs/toolchain@v1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }} #required
-          file: ./coverage.xml #optional
-          flags: unittests #optional
-          name: codecov-umbrella #optional
-          yml: ./codecov.yml #optional
+          toolchain: nightly
+          override: true
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clean
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features --no-fail-fast # Customize args for your own needs
+        env:
+          CARGO_INCREMENTAL: "0"
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+
+      - id: coverage
+        uses: actions-rs/grcov@v0.1
+
+      - name: Coveralls upload
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ${{ steps.coverage.outputs.report }}
